@@ -9,18 +9,21 @@ function login() {
   const[password,setPassword] =useState()
   const navigate = useNavigate()
 
-  const handleSubmit = (e)=>{ 
-    e.preventDefault()
-    axios.post('http://localhost:3000/',{email,password})
-    
-    .then(result => {console.log(result)
-        if(result.data === "success"){
-            navigate("/home")
-        }
-     
-    })
-    .catch(err => console.log(err))
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const result = await axios.post('http://localhost:3000/login', { email, password });
+
+    if (result.data === "success") {
+      navigate("/home");
+    }
+  } catch (err) {
+    // Get error message from response (if available)
+    const message = err.response?.data?.message || "Login failed due to server error";
+    alert(message);
   }
+};
 
   return (
     <div className='h-screen w-full bg-white flex justify-between items-center relative ' >

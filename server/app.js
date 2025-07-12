@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-
+const bcrypt = require("bcrypt");
 
 const userModel = require('./models/user'); 
 const candidateModel = require('./models/candidatemodel');
@@ -13,45 +13,60 @@ app.use(cors());
 mongoose.connect("mongodb://127.0.0.1:27017/mydatabase");
 
 
-app.post("/register", (req, res) => {
-    userModel.create(req.body)
-        .then(user => res.json(user))
-        .catch(err => res.status(500).json(err));
+app.post("/register", async (req, res) => {
+  try {
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+    const user = await userModel.create({
+      ...req.body,
+      password: hashedPassword,
+      role: "admin" // ✅ Force admin role
+    });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json(err);
+  }
 });
 
 
-app.post("/", (req, res) => {
-    const { email, password } = req.body;
-    userModel.findOne({ email })
-        .then(user => {
-            if (user) {
-                if (user.password === password) {
-                    res.json("success");
-                } else {
-                    res.json("password is incorrect");
-                }
-            } else {
-                res.json("no data found");
-            }
-        })
-        .catch(err => res.status(500).json(err));
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await userModel.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: "Password is incorrect" });
+
+    res.json("success");
+  } catch (err) {
+    res.status(500).json({ message: "Server error", details: err.message });
+  }
 });
-app.post("/admin", (req, res) => {
-    const { email, password } = req.body;
-    userModel.findOne({ email })
-        .then(user => {
-            if (user) {
-                if (user.password === password) {
-                    res.json("success");
-                } else {
-                    res.json("password is incorrect");
-                }
-            } else {
-                res.json("no data found");
-            }
-        })
-        .catch(err => res.status(500).json(err));
+
+app.post("/admin", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await userModel.findOne({ email });
+
+    if (!user) return res.status(404).json({ message: "Admin not found" });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(401).json({ message: "Password is incorrect" });
+
+    // 👇 REMOVE this check if you want everyone to be admin
+    // if (user.role !== "admin") return res.status(403).json({ message: "Not an admin account" });
+
+    // ✅ Bypass admin check: everyone can login
+    res.json("success");
+
+  } catch (err) {
+    res.status(500).json({ message: "Server error", details: err.message });
+  }
 });
+
+
 
 
 app.post("/candidate", (req, res) => {
@@ -89,6 +104,7 @@ app.delete("/candidates/:id", (req, res) => {
 });
 
 
+
 app.put("/candidate/vote/:id", (req, res) => {
     const { id } = req.params;
 
@@ -109,6 +125,21 @@ app.put("/candidate/vote/:id", (req, res) => {
         .catch(err => res.status(500).json({ error: "Failed to update vote count", details: err.message }));
 });
 
+
+async function createAdmin() {
+  const existing = await userModel.findOne({ email: "admin@example.com" });
+  if (existing) return console.log("Admin already exists");
+
+  const hashedPassword = await bcrypt.hash("admin123", 10);
+  await userModel.create({
+    email: "admin@example.com",
+    password: hashedPassword,
+    role: "admin"
+  });
+  console.log("✅ Admin created with email: admin@example.com");
+}
+
+createAdmin();
 
 
 app.listen(3000, () => {

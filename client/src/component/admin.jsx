@@ -9,17 +9,22 @@ function admin() {
   const[password,setPassword] =useState()
   const navigate = useNavigate()
 
-  const handleSubmit = (e)=>{ 
-    e.preventDefault()
-    axios.post('http://localhost:3000/admin',{email,password})
-    .then(result => {console.log(result)
-        if(result.data === "success"){
-            navigate("/main")
-        }
-     
-    })
-    .catch(err => console.log(err))
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const result = await axios.post('http://localhost:3000/admin', { email, password });
+
+    if (result.data === "success") {
+      navigate("/main");
+    }
+  } catch (err) {
+    const message = err.response?.data?.message || "Admin login failed";
+    alert(message);
   }
+};
+
+
 
   return (
     <div className='h-screen w-full bg-slate-100 flex justify-between items-center relative ' >
